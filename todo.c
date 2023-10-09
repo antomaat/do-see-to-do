@@ -25,6 +25,12 @@ void todo_destroy(struct TodoField *todo) {
     free(todo);
 }
 
+int is_todo_done(struct TodoField *todo) {
+    return todo->is_done;
+}
+
+int (*is_done)(struct TodoField *todo) = is_todo_done;
+
 int main() {
     struct TodoField *todo_fields[] = {
         todo_create("pick up food", 0),
@@ -32,9 +38,14 @@ int main() {
         todo_create("make food", 2),
         todo_create("eat", 3),
     };
+
+    todo_fields[2]->is_done = 1;
+
     int i = 0;
     for (i = 0; i < sizeof(todo_fields) / sizeof(char *); i++) {
-        printf("%s -> priority %d \n", todo_fields[i]->message, todo_fields[i]->priority);
+        if (!is_done(todo_fields[i])) {
+            printf("%s -> priority %d \n", todo_fields[i]->message, todo_fields[i]->priority);
+        }
     };
     for (i = 0; i < sizeof(todo_fields) / sizeof(char *); i++) {
         todo_destroy(todo_fields[i]);

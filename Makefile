@@ -1,2 +1,4 @@
+CFLAGS=-Wall -g
+
 clean:
-	rm -f todo 
+	rm -f todo
