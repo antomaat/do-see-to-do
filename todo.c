@@ -139,7 +139,7 @@ int main() {
         fgets(input, 100-1, stdin);
         struct Command result = process_input(input, 100);
         if (result.command_nr != 0) {
-            printf("process input %s", input);
+            printf("\033[94m process input %s \033[0m", input);
         }
         if (result.command_nr == 1) {
             break;
