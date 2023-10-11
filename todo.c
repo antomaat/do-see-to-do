@@ -11,6 +11,12 @@ struct TodoField {
     int is_done;
 };
 
+struct Command {
+    char *command;
+    int command_nr;
+    char *message;
+};
+
 struct TodoField *todo_create(char *message, int priority) {
     struct TodoField *todo = malloc(sizeof(struct TodoField));
     assert(todo != NULL);
@@ -48,12 +54,56 @@ void print_todo_fields(struct TodoField *todo_fields[]) {
     }
 } 
 
-int process_input(char input[], int input_size) {
-    if (contains_string(input, "q")) {
+int translate_command_type(char command[]) {
+    if (contains_string(command, ":q")) {
         return 1;
-    }    
-    return 0;
+    } else {
+        return 0;
+    }
 }
+
+struct Command process_input(char input[], int input_size) {
+    struct Command command = {};
+    if (contains_string(input, ":")) {
+        int index = 0;
+        char token[50]; 
+        int token_index = 0;
+        int token_part_index = 0;
+
+        while (input[index] != '\0') {
+            if (input[index] == ' ') {
+                if (token_part_index == 0) {
+                    command.command = token;
+                    command.command_nr = translate_command_type(token);
+                }
+                if (token_part_index == 1) {
+                    command.message = token;
+                }
+                memset(token, '\0', 50);
+                token_part_index++;
+                token_index = 0;
+            } else {
+                token[token_index] = input[index];
+                token_index++;
+            }
+            index++;
+        }
+        if (token_index > 0) {
+            if (token_part_index == 0) {
+                command.command = token;
+                command.command_nr = translate_command_type(token);
+            }
+            if (token_part_index == 1) {
+                command.message = token;
+            }
+            memset(token, '\0', 50);
+            token_part_index++;
+            token_index = 0;
+        }
+    }
+    return command;
+}
+
 
 int contains_string(char *input1, char *input2) {
     int index = 0;
@@ -80,18 +130,23 @@ int main() {
         NULL
     };
     todo_index = 4;
+    printf("\e[1;1H\e[2J");
 
     print_todo_fields(todo_fields);
 
     while(1) {
         char input[100] = "";
         fgets(input, 100-1, stdin);
-        int result = process_input(input, 100);
-        if (result == 1) {
+        struct Command result = process_input(input, 100);
+        if (result.command_nr != 0) {
+            printf("process input %s", input);
+        }
+        if (result.command_nr == 1) {
             break;
         }
         input[strcspn(input, "\n")] = 0;
         todo_fields[todo_index] = todo_create(input, todo_index);
+        printf("\e[1;1H\e[2J");
         print_todo_fields(todo_fields);
         todo_index++;
     }
