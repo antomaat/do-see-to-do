@@ -27,6 +27,13 @@ struct TodoField *todo_create(char *message, int priority) {
     return todo;
 }
 
+enum COMMANDS {
+    NONE = 0,
+    QUIT = 1,
+    UP = 2,
+    DOWN = 3
+};
+
 void todo_destroy(struct TodoField *todo) {
     if (todo != NULL) {
         free(todo->message);
@@ -44,11 +51,16 @@ int is_todo_not_done(struct TodoField *todo) {
 
 typedef int (*is_done)(struct TodoField *todo);
 
-void print_todo_fields(struct TodoField *todo_fields[]) {
+void print_todo_fields(struct TodoField *todo_fields[], int selected) {
     int i = 0;
     while (todo_fields[i] != NULL) {
         if (!todo_fields[i]->is_done) {
-            printf("%s -> priority %d \n", todo_fields[i]->message, todo_fields[i]->priority);
+            if (i != selected) {
+                printf("%s -> priority %d \n", todo_fields[i]->message, todo_fields[i]->priority);
+            } else {
+                printf("\033[94m %s -> priority %d \033[0m\n", todo_fields[i]->message, todo_fields[i]->priority);
+ 
+            }
         }
         i++;
     }
@@ -56,9 +68,16 @@ void print_todo_fields(struct TodoField *todo_fields[]) {
 
 int translate_command_type(char command[]) {
     if (contains_string(command, ":q")) {
-        return 1;
-    } else {
-        return 0;
+        return QUIT;
+    } 
+    else if (contains_string(command, ":u")) {
+        return UP;
+    }
+    else if (contains_string(command, ":d")) {
+        return DOWN;
+    }
+    else {
+        return NONE;
     }
 }
 
@@ -132,7 +151,8 @@ int main() {
     todo_index = 4;
     printf("\e[1;1H\e[2J");
 
-    print_todo_fields(todo_fields);
+    int selected = 0;
+    print_todo_fields(todo_fields, selected);
 
     while(1) {
         char input[100] = "";
@@ -141,14 +161,24 @@ int main() {
         if (result.command_nr != 0) {
             printf("\033[94m process input %s \033[0m", input);
         }
-        if (result.command_nr == 1) {
+        if (result.command_nr == QUIT) {
             break;
         }
-        input[strcspn(input, "\n")] = 0;
-        todo_fields[todo_index] = todo_create(input, todo_index);
+        else if (result.command_nr == UP) {
+            selected--;
+            if (selected < 0) {
+                selected = 0;
+            }
+        }
+        else if (result.command_nr == DOWN) {
+            selected++;
+        } else {
+            input[strcspn(input, "\n")] = 0;
+            todo_fields[todo_index] = todo_create(input, todo_index);
+            todo_index++;
+        }
         printf("\e[1;1H\e[2J");
-        print_todo_fields(todo_fields);
-        todo_index++;
+        print_todo_fields(todo_fields, selected);
     }
 
     // cleanup
