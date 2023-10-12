@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
+#include <termios.h>
+#include <unistd.h>
 
 int contains_string(char input1[], char input2[]);
 
@@ -9,6 +11,7 @@ struct TodoField {
     char *message;
     int priority;
     int is_done;
+    int is_deleted;
 };
 
 struct Command {
@@ -31,8 +34,25 @@ enum COMMANDS {
     NONE = 0,
     QUIT = 1,
     UP = 2,
-    DOWN = 3
+    DOWN = 3,
+    INTERACT = 4
 };
+
+struct termios term;
+
+void disableRawMode() {
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &term);
+}
+
+void enableRawMode() {
+    tcgetattr(STDIN_FILENO, &term);
+    atexit(disableRawMode);
+
+    struct termios raw = term;
+    raw.c_lflag &= ~(ICANON | ECHO);
+
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+}
 
 void todo_destroy(struct TodoField *todo) {
     if (todo != NULL) {
@@ -54,13 +74,21 @@ typedef int (*is_done)(struct TodoField *todo);
 void print_todo_fields(struct TodoField *todo_fields[], int selected) {
     int i = 0;
     while (todo_fields[i] != NULL) {
-        if (!todo_fields[i]->is_done) {
-            if (i != selected) {
-                printf("%s -> priority %d \n", todo_fields[i]->message, todo_fields[i]->priority);
-            } else {
-                printf("\033[94m %s -> priority %d \033[0m\n", todo_fields[i]->message, todo_fields[i]->priority);
- 
+        if (!todo_fields[i]->is_deleted) {
+            if (i == selected) {
+                printf("\033[94m ");
             }
+            if (todo_fields[i]->is_done) {
+                printf("\x1b[9m");
+            }
+            printf("%s -> priority %d", todo_fields[i]->message, todo_fields[i]->priority);
+            if (i == selected) {
+                printf("\033[0m");
+            }
+            if (todo_fields[i]->is_done) {
+                printf("\x1b[29m");
+            }
+            printf("\n");
         }
         i++;
     }
@@ -75,6 +103,9 @@ int translate_command_type(char command[]) {
     }
     else if (contains_string(command, ":d")) {
         return DOWN;
+    }
+    else if (contains_string(command, ":i")) {
+        return INTERACT;
     }
     else {
         return NONE;
@@ -172,7 +203,46 @@ int main() {
         }
         else if (result.command_nr == DOWN) {
             selected++;
-        } else {
+        } 
+        else if (result.command_nr == INTERACT) {
+            printf("\e[1;1H\e[2J");
+            printf("interactive mode\n");
+            print_todo_fields(todo_fields, selected);
+            enableRawMode();
+            char in;
+            while (read(STDIN_FILENO, &in, 1) == 1 && in != 'q') {
+                if (in == 'k') {
+                    printf("\e[1;1H\e[2J");
+                    printf("interactive mode\n");
+                    selected--;
+                    if (selected < 0) {
+                        selected = 0;
+                    }
+                    print_todo_fields(todo_fields, selected);
+                }
+                if (in == 'j') {
+                    printf("\e[1;1H\e[2J");
+                    printf("interactive mode\n");
+                    selected++;
+                    print_todo_fields(todo_fields, selected);
+                }
+                if (in == 'd') {
+                    printf("\e[1;1H\e[2J");
+                    printf("interactive mode\n");
+                    todo_fields[selected]->is_done = !todo_fields[selected]->is_done; 
+                    print_todo_fields(todo_fields, selected);
+                }
+                if (in == 'x') {
+                    printf("\e[1;1H\e[2J");
+                    printf("interactive mode\n");
+                    todo_fields[selected]->is_deleted = 1;
+                    selected--;
+                    print_todo_fields(todo_fields, selected);
+                }
+            }
+            disableRawMode();
+        } 
+        else {
             input[strcspn(input, "\n")] = 0;
             todo_fields[todo_index] = todo_create(input, todo_index);
             todo_index++;
