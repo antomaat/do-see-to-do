@@ -40,6 +40,7 @@ enum COMMANDS {
 
 struct termios term;
 
+
 void disableRawMode() {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &term);
 }
@@ -60,6 +61,17 @@ void todo_destroy(struct TodoField *todo) {
         free(todo);
     }
 }
+
+void remove_from_array(struct TodoField *todoFields[], int removeIndex) {
+    todo_destroy(todoFields[removeIndex]);
+    int index = removeIndex + 1;
+    while (todoFields[index] != 0 || todoFields[index] != NULL) {
+        todoFields[index-1] = todoFields[index];
+        index++;
+    }
+    todoFields[index-1] = NULL;
+}
+
 
 int is_todo_done(struct TodoField *todo) {
     return todo->is_done;
@@ -189,9 +201,6 @@ int main() {
         char input[100] = "";
         fgets(input, 100-1, stdin);
         struct Command result = process_input(input, 100);
-        if (result.command_nr != 0) {
-            printf("\033[94m process input %s \033[0m", input);
-        }
         if (result.command_nr == QUIT) {
             break;
         }
@@ -235,8 +244,7 @@ int main() {
                 if (in == 'x') {
                     printf("\e[1;1H\e[2J");
                     printf("interactive mode\n");
-                    todo_fields[selected]->is_deleted = 1;
-                    selected--;
+                    remove_from_array(todo_fields, selected);
                     print_todo_fields(todo_fields, selected);
                 }
             }
